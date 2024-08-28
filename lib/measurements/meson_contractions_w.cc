@@ -9,6 +9,8 @@
  * Maybe we'll also support sdb, one day...
  */
 
+// for newer gcc, tested on gcc12, we need to include "algorithm" for find() to work
+#include <algorithm>
 
 #include "meson_contractions_w.h"
 #include "../contractions/meson_contractions_func_w.h"
