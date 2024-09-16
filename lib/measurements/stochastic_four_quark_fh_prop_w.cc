@@ -283,7 +283,9 @@ namespace Chroma
 	      int N  = params.stochfourqfhparam.ZN;
 	      LatticeReal rnd1, theta;
 	      // twopi defined in chroma/lib/chromabase.h
-	      Real twopiN = Chroma::twopi / N;
+          // not any more - now Chroma::constant().twopi
+          const Real twopi = 6.283185307179586476925286;
+          Real twopiN = twopi / N;
 	      random(rnd1);
 	      theta = twopiN * floor(N*rnd1);
 	      vec = cmplx(cos(theta),sin(theta));

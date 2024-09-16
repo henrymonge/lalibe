@@ -192,7 +192,9 @@ namespace Chroma
 	    int ZN  = params.hpparam.ZN;
 	    LatticeReal rnd1, theta;
 	    // twopi defined in chroma/lib/chromabase.h
-	    Real twopiN = Chroma::twopi / ZN; 
+        // not any more - now Chroma::constant().twopi
+        const Real twopi = 6.283185307179586476925286;
+        Real twopiN = twopi / ZN;
 	    random(rnd1); 
 	    theta = twopiN * floor(ZN*rnd1);
 	    noise_vec = cmplx(cos(theta),sin(theta));
