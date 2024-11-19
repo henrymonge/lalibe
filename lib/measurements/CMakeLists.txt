@@ -26,11 +26,13 @@ target_sources(lalibe
    meson_contractions_w.cc
    stochastic_four_quark_fh_prop_w.cc
    fh_prop_w.cc
+   fh_4q_block_w.cc
    hdf5_write_erase_obj.cc
    lalibe_aggregate.cc
    meson_contractions_w.h
    stochastic_four_quark_fh_prop_w.h
    fh_prop_w.h
+   fh_4q_block_w.h
    hdf5_write_erase_obj.h
    lalibe_aggregate.h
    moments_fh_prop_w.cc

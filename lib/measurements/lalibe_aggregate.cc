@@ -14,6 +14,7 @@
 #include "flavor_conserving_fh_baryon_contractions_w.h"
 #include "flavor_changing_fh_baryon_contractions_w.h"
 #include "fh_prop_w.h"
+#include "fh_4q_block_w.h"
 #include "ZN_prop_w.h"
 #include "HP_prop_w.h"
 #include "lalibe_bar3ptfn_w.h"
@@ -63,6 +64,7 @@ namespace Chroma
                     success &= LalibeBaryonFHContractionsEnv::registerAll() ;
                     success &= LalibeMesonContractionsEnv::registerAll() ;
                     success &= LalibeFHPropagatorEnv::registerAll() ;
+                    success &= LalibeFH4QBlockEnv::registerAll() ;
                     success &= LalibeZNPropagatorEnv::registerAll() ;
                     success &= LalibeHPPropagatorEnv::registerAll() ;
                     success &= LalibeBar3ptfnEnv::registerAll() ;
