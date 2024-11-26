@@ -44,10 +44,8 @@ namespace Chroma
                 //int  t0;                            //t0 of input prop
                 //int j_decay;                        //orthogonal direction of FT
                 //Apparently I can read these things from a src prop.
-                bool is_mom_max;                      //keeps track of which momentum mode we are using
-                int p2_max;                           //max of momentum transfer squared, optional
-                multi1d<multi1d<int>> mom_list;       //list of momenta insertions, optional
-                multi2d<int> p_list;                  //momentum list the slow fourier transform needs
+                multi1d<int> colors;                            //half block color
+                multi1d<int> spins ;                            //half block spin
                 ChromaProp_t prop_param;              //params for next lin solve
             } fhparam ;
 
@@ -55,7 +53,7 @@ namespace Chroma
             {
                 std::string                     gauge_id;
                 std::string                     src_prop_id;
-                multi1d<std::string>            fh_prop_id;
+                std::string                     fh_block_id;
 
             } named_obj;
         };
