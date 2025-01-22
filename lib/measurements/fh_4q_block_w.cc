@@ -81,7 +81,8 @@ namespace Chroma
         {
             XMLReader inputtop(xml, path);
             read(inputtop, "gauge_id"     , input.gauge_id);
-            read(inputtop, "src_prop_id"  , input.src_prop_id);
+            read(inputtop, "src_prop_1_id"  , input.src_prop_1_id);
+            read(inputtop, "src_prop_2_id"  , input.src_prop_2_id);
             read(inputtop, "fh_block_id"   , input.fh_block_id);
         }
 
@@ -90,7 +91,8 @@ namespace Chroma
         {
             push(xml, path);
             write(xml, "gauge_id"     , input.gauge_id    );
-            write(xml, "src_prop_id"  , input.src_prop_id     );
+            write(xml, "src_prop_1_id"  , input.src_prop_1_id     );
+            write(xml, "src_prop_2_id"  , input.src_prop_2_id     );
             write(xml, "fh_block_id"   , input.fh_block_id);
             pop(xml);
         }
@@ -168,24 +170,26 @@ namespace Chroma
 
             // Read "src" quark propagator
             XMLReader prop_file_xml, prop_record_xml;
-            LatticePropagator quark_propagator;
-            int t0;
-            int j_decay;
+            LatticePropagator quark_propagator_1;
+      
+            int t0_1;
+            int j_decay_1;
             //Need origin for fourier transform!
-            multi1d<int> origin;
+            multi1d<int> origin_1;
+
             //We need this stuff to call quarkprop, it's pretty dumb, but I haven't found a way around it...
-            QDPIO::cout << "Attempt to read forward propagator" << std::endl;
+            QDPIO::cout << "Attempt to read forward propagator 1" << std::endl;
             try
                 {
-                    quark_propagator = TheNamedObjMap::Instance().getData<LatticePropagator>(params.named_obj.src_prop_id);
-                    TheNamedObjMap::Instance().get(params.named_obj.src_prop_id).getFileXML(prop_file_xml);
-                    TheNamedObjMap::Instance().get(params.named_obj.src_prop_id).getRecordXML(prop_record_xml);
+                    quark_propagator_1 = TheNamedObjMap::Instance().getData<LatticePropagator>(params.named_obj.src_prop_1_id);
+                    TheNamedObjMap::Instance().get(params.named_obj.src_prop_1_id).getFileXML(prop_file_xml);
+                    TheNamedObjMap::Instance().get(params.named_obj.src_prop_1_id).getRecordXML(prop_record_xml);
                     //This all assumes the incoming propagating is coming from a makesource, otherwise we are in a ton of trouble ~_~.
-                    MakeSourceProp_t  orig_header;
-                    read(prop_record_xml, "/Propagator", orig_header);
-                    j_decay = orig_header.source_header.j_decay;
-                    t0      = orig_header.source_header.t_source;
-                    origin = orig_header.source_header.getTSrce();
+                    MakeSourceProp_t  orig_1_header;
+                    read(prop_record_xml, "/Propagator", orig_1_header);
+                    j_decay_1 = orig_1_header.source_header.j_decay;
+                    t0_1      = orig_1_header.source_header.t_source;
+                    origin_1 = orig_1_header.source_header.getTSrce();
                 }
             catch (std::bad_cast)
                 {
@@ -194,7 +198,39 @@ namespace Chroma
                 }
             catch (const std::string& e)
                 {
-                    QDPIO::cerr << name << ": error reading src prop_header: "
+                    QDPIO::cerr << name << ": error reading src prop_1_header: "
+                                << e << std::endl;
+                    QDP_abort(1);
+                }
+
+            LatticePropagator quark_propagator_2;
+
+            int t0_2;
+            int j_decay_2;
+            //Need origin for fourier transform!
+             multi1d<int> origin_2;
+
+            QDPIO::cout << "Attempt to read forward propagator 2" << std::endl;
+            try
+                {
+                    quark_propagator_2 = TheNamedObjMap::Instance().getData<LatticePropagator>(params.named_obj.src_prop_2_id);
+                    TheNamedObjMap::Instance().get(params.named_obj.src_prop_2_id).getFileXML(prop_file_xml);
+                    TheNamedObjMap::Instance().get(params.named_obj.src_prop_2_id).getRecordXML(prop_record_xml);
+                    //This all assumes the incoming propagating is coming from a makesource, otherwise we are in a ton of trouble ~_~.
+                    MakeSourceProp_t  orig_2_header;
+                    read(prop_record_xml, "/Propagator", orig_2_header);
+                    j_decay_2 = orig_2_header.source_header.j_decay;
+                    t0_2      = orig_2_header.source_header.t_source;
+                    origin_2 = orig_2_header.source_header.getTSrce();
+                }
+            catch (std::bad_cast)
+                {
+                    QDPIO::cerr << name << ": caught dynamic cast error" << std::endl;
+                    QDP_abort(1);
+                }
+            catch (const std::string& e)
+                {
+                    QDPIO::cerr << name << ": error reading src prop_2_header: "
                                 << e << std::endl;
                     QDP_abort(1);
                 }
@@ -215,11 +251,11 @@ namespace Chroma
 
             int ncg_had = 0; //This appears in the propagator task, I am just copying it here.
 
-      	    LatticePropagator fh_prop_src_a = quark_propagator;
-            LatticePropagator fh_prop_src_b = quark_propagator;
-            LatticePropagator fh_prop_src_c;
+      	    LatticePropagator fh_prop_src_a=zero;
+            LatticePropagator fh_prop_src_b=zero;
+            LatticePropagator fh_prop_src_c=zero;
 
-            LatticePropagator fh_prop_solution;
+            LatticePropagator fh_prop_solution=zero;
 
 
             //std::string present_current = params.fhparam.currents[0];
@@ -236,8 +272,8 @@ namespace Chroma
             // WE SHOULD MAKE THIS A FACTORY
             //Maybe I can use to bilinear_gammas to make the 4quark op 
             //
-            Bilinear_Gamma(params.fhparam.currents[0], fh_prop_src_a, quark_propagator, u);
-            Bilinear_Gamma(params.fhparam.currents[1], fh_prop_src_b, quark_propagator, u);
+            Bilinear_Gamma(params.fhparam.currents[0], fh_prop_src_a, quark_propagator_1, u);
+            Bilinear_Gamma(params.fhparam.currents[1], fh_prop_src_b, quark_propagator_2, u);
 
             //Will only need these for partial sums
             const QDP::Subset& sub = QDP::all;
@@ -284,7 +320,7 @@ namespace Chroma
                             cc = peekColor(cm,c1,c2);    
                             fh_prop_src_c = cc*fh_prop_src_a;
 
-                            action->quarkProp(fh_prop_solution, xml_out, fh_prop_src_c, t0, j_decay, action_state,
+                            action->quarkProp(fh_prop_solution, xml_out, fh_prop_src_c, t0_1, j_decay_1, action_state,
                                           params.fhparam.prop_param.invParam,
                                           params.fhparam.prop_param.quarkSpinType,
                                           params.fhparam.prop_param.obsvP, ncg_had);
@@ -317,7 +353,7 @@ namespace Chroma
                 if (pnorm.elem().elem().elem().elem() > (REAL) 0){
                     QDPIO::cout << " Solving prop i = " << i  << "\n";
                     //QDPIO::cout << " norm2(cc) = " << norm2(cc) << " norm2(fh_prop_src_c)=" << norm2(fh_prop_src_c) << "\n";
-                    action->quarkProp(fh_prop_solution, xml_out, fh_solutions[i], t0, j_decay, action_state,
+                    action->quarkProp(fh_prop_solution, xml_out, fh_solutions[i], t0_2, j_decay_2, action_state,
                                       params.fhparam.prop_param.invParam,
                                       params.fhparam.prop_param.quarkSpinType,
                                       params.fhparam.prop_param.obsvP, ncg_had);

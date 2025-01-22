@@ -41,6 +41,7 @@ namespace Chroma
             // only same flavor bilinear operators are used
             struct FHProp_t{
                 multi1d<std::string> currents;        //list of currents
+                multi1d<std::string> temps;        //list of currents
                 //int  t0;                            //t0 of input prop
                 //int j_decay;                        //orthogonal direction of FT
                 //Apparently I can read these things from a src prop.
@@ -52,7 +53,8 @@ namespace Chroma
             struct NamedObject_t
             {
                 std::string                     gauge_id;
-                std::string                     src_prop_id;
+                std::string                     src_prop_1_id;
+                std::string                     src_prop_2_id;
                 std::string                     fh_block_id;
 
             } named_obj;
