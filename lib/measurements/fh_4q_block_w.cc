@@ -113,7 +113,6 @@ namespace Chroma
 
                     // Parameters for source construction
                     read(paramtop, "FHParams", fhparam);
-
                     // Read in the NamedObject info
                     read(paramtop, "NamedObject", named_obj);
                 }
@@ -219,41 +218,129 @@ namespace Chroma
       	    LatticePropagator fh_prop_src_a = quark_propagator;
             LatticePropagator fh_prop_src_b = quark_propagator;
             LatticePropagator fh_prop_src_c;
-            LatticePropagator fh_prop_src_d;
 
             LatticePropagator fh_prop_solution;
 
 
-            QDPIO::cout << "FH_4QOPERATOR: " << params.fhparam.currents[0] << " " <<params.fhparam.currents[1] << std::endl;
+            //std::string present_current = params.fhparam.currents[0];
+
+            //QDPIO::cout << "FH_4QOPERATOR: " << present_current << " " << present_current << std::endl;
 
             fh_prop_solution = zero;
+            QDPIO::cout << "FH_PROPAGATOR: currents " << params.fhparam.currents[0] << " "<<params.fhparam.currents[1] << std::endl;
+            QDPIO::cout << "FH_PROPAGATOR: colors " << params.fhparam.colors[0] << " " <<params.fhparam.colors[1]<< std::endl;
+            QDPIO::cout << "FH_PROPAGATOR: spins " << params.fhparam.spins[0] << " " << params.fhparam.spins[1] << std::endl;
 
+            QDPIO::cout << "FH_4QOPERATOR: " << std::endl;
 
             // WE SHOULD MAKE THIS A FACTORY
             //Maybe I can use to bilinear_gammas to make the 4quark op 
+            //
             Bilinear_Gamma(params.fhparam.currents[0], fh_prop_src_a, quark_propagator, u);
             Bilinear_Gamma(params.fhparam.currents[1], fh_prop_src_b, quark_propagator, u);
 
-            /*Will only need these for partial sums
+            //Will only need these for partial sums
             const QDP::Subset& sub = QDP::all;
             int qdp_index = sub.siteTable()[0];
             int numSites = sub.siteTable().size();
-            int nodeNumber=Layout::nodeNumber();
-            */
+            //int nodeNumber=Layout::nodeNumber();
+
+	   
             LatticeColorMatrix cm ;
             LatticeComplex cc;
 
+            multi1d<LatticePropagator> fh_solutions; 
 
-            cm = peekSpin(fh_prop_src_b,params.fhparam.spins[0],params.fhparam.spins[1]);
-            cc = peekColor(cm,params.fhparam.colors[0],params.fhparam.colors[1]);
+            //indices=s1*4*3*3+s2*3*3+c1*3+c2
+            multi2d<int> qn;  
+            qn.resize(144,4);
+            fh_solutions.resize(144);
 
-                        
-            fh_prop_src_c = cc*fh_prop_src_a;
-                            //Now, we do the actual solve.
-            action->quarkProp(fh_prop_solution, xml_out, fh_prop_src_c, t0, j_decay, action_state,
-                      params.fhparam.prop_param.invParam,
-                      params.fhparam.prop_param.quarkSpinType,
-                      params.fhparam.prop_param.obsvP, ncg_had); 
+            int k=0;
+            for(int s1=0;s1<4;s1++){
+                for(int s2=0;s2<4;s2++){
+                    for(int c1=0;c1<3;c1++){
+                        for(int c2=0;c2<3;c2++){
+                            qn[k][0]=s1;
+                            qn[k][1]=s2;
+                            qn[k][2]=c1;
+                            qn[k][4]=c2;
+                            fh_solutions[k]=zero;
+                            k+=1;
+                        }
+                    }
+                }
+            }
+
+           std::string current_id;
+          
+
+           for(int s1=0;s1<4;s1++){
+                for(int s2=0;s2<4;s2++){
+                    cm = peekSpin(fh_prop_src_b,s1,s2);
+                    for(int c1=0;c1<3;c1++){ 
+                        for(int c2=0;c2<3;c2++){
+                            QDPIO::cout << "First set of solves: s1=" <<s1 <<" s2="<<s2<<" c1=" <<c1 <<" c2=" <<c2 <<"\n" ;
+                            cc = peekColor(cm,c1,c2);    
+                            fh_prop_src_c = cc*fh_prop_src_a;
+
+                            action->quarkProp(fh_prop_solution, xml_out, fh_prop_src_c, t0, j_decay, action_state,
+                                          params.fhparam.prop_param.invParam,
+                                          params.fhparam.prop_param.quarkSpinType,
+                                          params.fhparam.prop_param.obsvP, ncg_had);
+
+			    for(int n=0;n<numSites;n++){
+				    for(int i=0; i<144;i++){
+					fh_solutions[i].elem(n).elem(s1,s2).elem(c1,c2)=fh_prop_solution.elem(n).elem(qn[i][0],qn[i][1]).elem(qn[i][2],qn[i][3]);
+					//cm = peekSpin(fh_prop_solution,qn[i][0],qn[i][1]);
+					//cc = peekColor(cm,qn[i][2],qn[i][3]);
+					//LatticeColorMatrix dest   = zero;
+					//pokeColor(dest,cc,c1,c2);
+					//fh_solutions[i]=zero;
+					//pokeSpin(fh_solutions[i],dest,s1,s2);
+				    }
+			    }
+
+		      }
+                    }
+                }
+            }
+
+
+            //Now do the second set of solves
+            QDPIO::cout << "\n\n\nStarting second set of solves: " << std::endl;
+            Real pnorm=0.0;
+#if 1           
+            for(int i=0; i<144;i++){ 
+                pnorm=norm2(fh_solutions[i]);
+             
+                if (pnorm.elem().elem().elem().elem() > (REAL) 0){
+                    QDPIO::cout << " Solving prop i = " << i  << "\n";
+                    //QDPIO::cout << " norm2(cc) = " << norm2(cc) << " norm2(fh_prop_src_c)=" << norm2(fh_prop_src_c) << "\n";
+                    action->quarkProp(fh_prop_solution, xml_out, fh_solutions[i], t0, j_decay, action_state,
+                                      params.fhparam.prop_param.invParam,
+                                      params.fhparam.prop_param.quarkSpinType,
+                                      params.fhparam.prop_param.obsvP, ncg_had);
+                    fh_solutions[i]=fh_prop_solution;  
+                }else{
+                    QDPIO::cout << " prop " <<i <<" has zero norm"  << "\n";
+                }
+
+#if 0 
+
+                            // Pass the propagator info to the Named Object Buffer.
+                            current_id = params.named_obj.fh_block_id+"_s"+ std::to_string(qn[i][0])+
+                                                      +"_s"+std::to_string(qn[i][1]);
+                            current_id = current_id+"_c"+ std::to_string(qn[i][2])+"_c"+
+                                                      std::to_string(qn[i][3]);
+                            QDPIO::cout << current_id << " k= "<<i<<std::endl;
+                            TheNamedObjMap::Instance().create<LatticePropagator>(current_id);
+                            TheNamedObjMap::Instance().getData<LatticePropagator>(current_id) = fh_solutions[i];//fh_solutions[k];
+
+#endif
+
+            }
+#endif
 
            //Write the solves to disk? 
             push(xml_out,"Relaxation_Iterations");
@@ -268,10 +355,15 @@ namespace Chroma
 
 
             // Pass the propagator info to the Named Object Buffer.
-            std::string current_id = params.named_obj.fh_block_id;
+
+            /*
+            current_id = params.named_obj.fh_block_id+"_s"+ std::to_string(params.fhparam.spins[0])+
+                                      std::to_string(params.fhparam.spins[1]);
+            current_id = current_id+"_c"+ std::to_string(params.fhparam.colors[0])+ 
+                                      std::to_string(params.fhparam.colors[1]);
             TheNamedObjMap::Instance().create<LatticePropagator>(current_id);
             TheNamedObjMap::Instance().getData<LatticePropagator>(current_id) = fh_prop_solution;
-
+            */
             QDPIO::cout<<"YAAAY! We finished fh half block: "<<current_id<<std::endl;
         
             snoop.stop();
