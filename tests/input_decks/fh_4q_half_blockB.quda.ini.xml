@@ -83,10 +83,13 @@
 </elem>
 
 <elem>
-<Name>FH_PROPAGATOR</Name>
+<Name>FH_4QBLOCK</Name>
 <FHParams>
+<colors>1 1</colors>
+<spins>2 2</spins>
 <currents>
 <elem>A3</elem>
+<elem>V4</elem>
 </currents>
 <PropagatorParam>
     <version>10</version>
@@ -132,19 +135,11 @@
     <AntiPeriodicT>true</AntiPeriodicT>
     </InvertParam>
 </PropagatorParam>
-<!-- <p2_max>2</p2_max> -->
-<!--
-<px></px>
-<py></py>
-<pz></pz>
--->
 </FHParams>
 <NamedObject>
   <gauge_id>default_gauge_field</gauge_id>
   <src_prop_id>prop</src_prop_id>
-  <fh_prop_id>
-   <elem>fh_prop_A3</elem>
-  </fh_prop_id>
+  <fh_block_id>fh_block_A3_V4</fh_block_id>
 </NamedObject>
 </elem>
 
