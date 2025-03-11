@@ -61,17 +61,14 @@ namespace Chroma
             XMLReader paramtop(xml, path);
             read(paramtop, "currents" ,par.currents  ); //list of currents
             read(paramtop, "PropagatorParam" ,par.prop_param ); //params for next lin solve
-            read(paramtop, "colors" ,par.colors);   //colors for half block
-            read(paramtop, "spins" ,par.spins);     //spins for half block
-
+            read(paramtop, "curr_loc" ,par.curr_loc);   //current insertion location for fh 4q block
         }
 
         void write(XMLWriter& xml, const std::string& path, FHParams::FHProp_t& par)
         {
             push(xml, path);
             write(xml, "currents" ,par.currents); //list of currents
-            write(xml, "colors"      ,par.colors     ); //colors for half block
-            write(xml, "spins" ,par.spins); //spins for half block
+            write(xml, "curr_loc"      ,par.curr_loc     ); //current insertion location for fh 4q block
             write(xml, "PropagatorParam" ,par.prop_param); //params for next lin solve
 
         }
@@ -263,11 +260,12 @@ namespace Chroma
             //QDPIO::cout << "FH_4QOPERATOR: " << present_current << " " << present_current << std::endl;
 
             fh_prop_solution = zero;
-            QDPIO::cout << "FH_PROPAGATOR: currents " << params.fhparam.currents[0] << " "<<params.fhparam.currents[1] << std::endl;
-            QDPIO::cout << "FH_PROPAGATOR: colors " << params.fhparam.colors[0] << " " <<params.fhparam.colors[1]<< std::endl;
-            QDPIO::cout << "FH_PROPAGATOR: spins " << params.fhparam.spins[0] << " " << params.fhparam.spins[1] << std::endl;
+            QDPIO::cout << "FH_4QBLOCK: currents " << params.fhparam.currents[0] << " "<<params.fhparam.currents[1] << std::endl;
+            QDPIO::cout << "FH_4QBLOCK: current location: " << params.fhparam.curr_loc[0] << " " <<params.fhparam.curr_loc[1]<< std::endl;
+            QDPIO::cout << "         x,y,z,t = " << params.fhparam.curr_loc[0] << "," <<params.fhparam.curr_loc[1];
+            QDPIO::cout << "," << params.fhparam.curr_loc[2] << "," <<params.fhparam.curr_loc[3]<< std::endl;
 
-            QDPIO::cout << "FH_4QOPERATOR: " << std::endl;
+
 
             // WE SHOULD MAKE THIS A FACTORY
             //Maybe I can use to bilinear_gammas to make the 4quark op 
@@ -280,14 +278,15 @@ namespace Chroma
             int qdp_index = sub.siteTable()[0];
             int numSites = sub.siteTable().size();
             //int nodeNumber=Layout::nodeNumber();
-
 	   
             LatticeColorMatrix cm ;
             LatticeComplex cc;
-
+      
+            //solutions for every spin a and color      
             multi1d<LatticePropagator> fh_solutions; 
 
-            //indices=s1*4*3*3+s2*3*3+c1*3+c2
+
+            //qn: spin and color quantum numbers 
             multi2d<int> qn;  
             qn.resize(144,4);
             fh_solutions.resize(144);
@@ -300,7 +299,7 @@ namespace Chroma
                             qn[k][0]=s1;
                             qn[k][1]=s2;
                             qn[k][2]=c1;
-                            qn[k][4]=c2;
+                            qn[k][3]=c2;
                             fh_solutions[k]=zero;
                             k+=1;
                         }
@@ -308,12 +307,42 @@ namespace Chroma
                 }
             }
 
+#if 1
+           //Lattice arrays with coordinates x,y,z,t=0,1,2,3
+           multi1d<LatticeInteger> lcoords;
+           LatticeInteger curr_loc=1.0;
+           lcoords.resize(4);
+           for(int i=0;i<4;i++)
+               lcoords[i] = Layout::latticeCoordinate(i);
+
+           multi1d<int> x_coords,y_coords;
+           x_coords.resize(4);
+           y_coords.resize(4);
+           x_coords[0]=params.fhparam.curr_loc[0];
+           x_coords[1]=params.fhparam.curr_loc[1];
+           x_coords[2]=params.fhparam.curr_loc[2];
+           x_coords[3]=params.fhparam.curr_loc[3];
+
+
+           for(int n=0;n<numSites;n++){ 
+               for(int i=0;i<4;i++){
+                   y_coords[i]=lcoords[i].elem(n).elem().elem().elem();
+                   if (x_coords[i]!=y_coords[i]){
+                      curr_loc.elem(n).elem().elem().elem()=0;  
+                   } 
+                        
+               }                   
+           }
+    
+#endif
+
            std::string current_id;
           
-
+#if 1
+           k=0;
            for(int s1=0;s1<4;s1++){
                 for(int s2=0;s2<4;s2++){
-                    cm = peekSpin(fh_prop_src_b,s1,s2);
+                    cm = peekSpin(curr_loc*conj(fh_prop_src_b),s1,s2);
                     for(int c1=0;c1<3;c1++){ 
                         for(int c2=0;c2<3;c2++){
                             QDPIO::cout << "First set of solves: s1=" <<s1 <<" s2="<<s2<<" c1=" <<c1 <<" c2=" <<c2 <<"\n" ;
@@ -325,34 +354,37 @@ namespace Chroma
                                           params.fhparam.prop_param.quarkSpinType,
                                           params.fhparam.prop_param.obsvP, ncg_had);
 
-			    for(int n=0;n<numSites;n++){
-				    for(int i=0; i<144;i++){
-					fh_solutions[i].elem(n).elem(s1,s2).elem(c1,c2)=fh_prop_solution.elem(n).elem(qn[i][0],qn[i][1]).elem(qn[i][2],qn[i][3]);
-					//cm = peekSpin(fh_prop_solution,qn[i][0],qn[i][1]);
-					//cc = peekColor(cm,qn[i][2],qn[i][3]);
-					//LatticeColorMatrix dest   = zero;
-					//pokeColor(dest,cc,c1,c2);
-					//fh_solutions[i]=zero;
-					//pokeSpin(fh_solutions[i],dest,s1,s2);
-				    }
-			    }
+                            //Pick other part of the block
+                            for(int n=0;n<numSites;n++){
+                                for(int i=0; i<144;i++){
+                                fh_solutions[i].elem(n).elem(s1,s2).elem(c1,c2)=fh_prop_solution.elem(n).elem(qn[i][0],qn[i][1]).elem(qn[i][2],qn[i][3]);
+                                }
+                            }
+#if 0
+                            cm = peekSpin(fh_prop_solution,qn[k][0],qn[k][1]);
+                            cc = peekColor(cm,qn[k][2],qn[k][3]);
+                            LatticeColorMatrix dest   = zero;
+                            pokeColor(dest,cc,c1,c2);
+                            fh_solutions[k]=zero;
+                            pokeSpin(fh_solutions[k],dest,s1,s2);
+                            k++;
+#endif                  
 
-		      }
-                    }
-                }
-            }
+ 
+		                } //end c2 loop
+                    }// end c1 loop
+                }//end s2 loop
+           }//end s1 loop
 
-
+#endif
             //Now do the second set of solves
             QDPIO::cout << "\n\n\nStarting second set of solves: " << std::endl;
             Real pnorm=0.0;
-#if 1           
+          
             for(int i=0; i<144;i++){ 
                 pnorm=norm2(fh_solutions[i]);
-             
                 if (pnorm.elem().elem().elem().elem() > (REAL) 0){
                     QDPIO::cout << " Solving prop i = " << i  << "\n";
-                    //QDPIO::cout << " norm2(cc) = " << norm2(cc) << " norm2(fh_prop_src_c)=" << norm2(fh_prop_src_c) << "\n";
                     action->quarkProp(fh_prop_solution, xml_out, fh_solutions[i], t0_2, j_decay_2, action_state,
                                       params.fhparam.prop_param.invParam,
                                       params.fhparam.prop_param.quarkSpinType,
@@ -362,21 +394,18 @@ namespace Chroma
                     QDPIO::cout << " prop " <<i <<" has zero norm"  << "\n";
                 }
 
-#if 0 
 
-                            // Pass the propagator info to the Named Object Buffer.
-                            current_id = params.named_obj.fh_block_id+"_s"+ std::to_string(qn[i][0])+
-                                                      +"_s"+std::to_string(qn[i][1]);
-                            current_id = current_id+"_c"+ std::to_string(qn[i][2])+"_c"+
-                                                      std::to_string(qn[i][3]);
-                            QDPIO::cout << current_id << " k= "<<i<<std::endl;
-                            TheNamedObjMap::Instance().create<LatticePropagator>(current_id);
-                            TheNamedObjMap::Instance().getData<LatticePropagator>(current_id) = fh_solutions[i];//fh_solutions[k];
-
-#endif
+                // Pass the propagator info to the Named Object Buffer.
+                current_id = params.named_obj.fh_block_id+"_s"+ std::to_string(qn[i][0])+
+                                          +"_s"+std::to_string(qn[i][1]);
+                current_id = current_id+"_c"+ std::to_string(qn[i][2])+"_c"+
+                                          std::to_string(qn[i][3]);
+                QDPIO::cout << current_id << " k= "<<i<<std::endl;
+                TheNamedObjMap::Instance().create<LatticePropagator>(current_id);
+                TheNamedObjMap::Instance().getData<LatticePropagator>(current_id) = fh_solutions[i];//fh_solutions[k];
+                QDPIO::cout<<"YAAAY! We finished fh half block: "<<current_id<<std::endl;
 
             }
-#endif
 
            //Write the solves to disk? 
             push(xml_out,"Relaxation_Iterations");
@@ -389,19 +418,7 @@ namespace Chroma
             write(file_xml, "id", uniqueId());  // NOTE: new ID form
             pop(file_xml);
 
-
-            // Pass the propagator info to the Named Object Buffer.
-
-            /*
-            current_id = params.named_obj.fh_block_id+"_s"+ std::to_string(params.fhparam.spins[0])+
-                                      std::to_string(params.fhparam.spins[1]);
-            current_id = current_id+"_c"+ std::to_string(params.fhparam.colors[0])+ 
-                                      std::to_string(params.fhparam.colors[1]);
-            TheNamedObjMap::Instance().create<LatticePropagator>(current_id);
-            TheNamedObjMap::Instance().getData<LatticePropagator>(current_id) = fh_prop_solution;
-            */
-            QDPIO::cout<<"YAAAY! We finished fh half block: "<<current_id<<std::endl;
-        
+   
             snoop.stop();
             QDPIO::cout << LalibeFH4QBlockEnv::name << ": total time = " << snoop.getTimeInSeconds() << " secs" << std::endl;
             QDPIO::cout << LalibeFH4QBlockEnv::name<< ": ran successfully" << std::endl;

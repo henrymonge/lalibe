@@ -45,8 +45,7 @@ namespace Chroma
                 //int  t0;                            //t0 of input prop
                 //int j_decay;                        //orthogonal direction of FT
                 //Apparently I can read these things from a src prop.
-                multi1d<int> colors;                            //half block color
-                multi1d<int> spins ;                            //half block spin
+                multi1d<int> curr_loc;                            //half block color
                 ChromaProp_t prop_param;              //params for next lin solve
             } fhparam ;
 
